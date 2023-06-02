@@ -113,7 +113,7 @@ private:
     struct value_array {
 
         int size,next;
-        T val[1010];
+        T val[1510];
         value_array() :size(0),next(-1) {};
         value_array(const T& _val) :size(1),next(-1) {
             val[0] = _val;
