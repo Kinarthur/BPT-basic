@@ -113,7 +113,7 @@ private:
     struct value_array {
 
         int size,next;
-        T val[1510];
+        T val[1010];
         value_array() :size(0),next(-1) {};
         value_array(const T& _val) :size(1),next(-1) {
             val[0] = _val;
@@ -410,7 +410,6 @@ public:
             int flag = value.erase(val.second);
             if (flag == 1) m_size--;
             if (value.size > 0) {
-
                 value_memory_river.update(value, node.child[index]);
                 return result();
             }
@@ -423,6 +422,7 @@ public:
                 node.cnt--;
                 if (node.cnt < (L >> 1)) {
                     bpt_node l_sib, r_sib;
+                    l_sib.cnt = r_sib.cnt = 0;
                     if (node_ind > 0) {
                         node_memory_river.read(l_sib, node.left_sibling);
                         if (l_sib.cnt > (L >> 1)) {
@@ -463,6 +463,12 @@ public:
                         l_sib.cnt += node.cnt;
                         l_sib.right_sibling = node.right_sibling;
                         node_memory_river.update(l_sib, node.left_sibling);
+                        if(node.right_sibling !=0){
+                            bpt_node tmp;
+                            node_memory_river.read(tmp,node.right_sibling);
+                            tmp.left_sibling = node.left_sibling;
+                            node_memory_river.update(tmp,node.right_sibling);
+                        }
                         node_memory_river.Delete(node_pos);
                         return result(2, node_ind, node.key[0]);
                     }
@@ -475,6 +481,12 @@ public:
                         node_memory_river.Delete(node.right_sibling);
                         node.right_sibling = r_sib.right_sibling;
                         node_memory_river.update(node, node_pos);
+                        if(r_sib.right_sibling !=0){
+                            bpt_node tmp;
+                            node_memory_river.read(tmp,r_sib.right_sibling);
+                            tmp.left_sibling = r_sib.left_sibling;
+                            node_memory_river.update(tmp,r_sib.right_sibling);
+                        }
                         return result(2, node_ind + 1, r_sib.key[0]);
                     }
                     node_memory_river.update(node, node_pos);
@@ -550,6 +562,12 @@ public:
                         l_sib.right_sibling = node.right_sibling;
                         node_memory_river.update(l_sib, node.left_sibling);
                         node_memory_river.Delete(node_pos);
+                        if(node.right_sibling !=0){
+                            bpt_node tmp;
+                            node_memory_river.read(tmp,node.right_sibling);
+                            tmp.left_sibling = node.left_sibling;
+                            node_memory_river.update(tmp,node.right_sibling);
+                        }
                         return result(2, node_ind, node.key[0]);
                     }
                     if (r_sib.cnt > 0) {
@@ -561,7 +579,12 @@ public:
                         node_memory_river.Delete(node.right_sibling);
                         node.right_sibling = r_sib.right_sibling;
                         node_memory_river.update(node, node_pos);
-
+                        if(r_sib.right_sibling !=0){
+                            bpt_node tmp;
+                            node_memory_river.read(tmp,r_sib.right_sibling);
+                            tmp.left_sibling = r_sib.left_sibling;
+                            node_memory_river.update(tmp,r_sib.right_sibling);
+                        }
                         return result(2, node_ind + 1, r_sib.key[0]);
                     }
                     node_memory_river.update(node, node_pos);
@@ -624,6 +647,30 @@ public:
             value_array value;
             value_memory_river.read(value, node.child[index]);
             return std::pair<int, T>(1, value.val[0]);
+        }
+    }
+
+    //输出节点 方便调试
+    void show(){
+        show(*root,root_pos);
+    }
+    void  show(bpt_node &node, int node_address){
+        static int sum = 0;
+        if(node.isleaf == 1){
+            printf("leaf addresss: %d size: %d left_sibling : %d right sibing: %d\n",node_address,node.cnt,node.left_sibling,node.right_sibling);
+            for(int i = 0; i< node.cnt;i++) printf("%s ",node.key[i]);
+            printf("\n\n");
+            sum+= node.cnt;
+        }else{
+            printf("non-leaf addresss: %d size: %d left_sibling : %d right sibing: %d\n",node_address,node.cnt,node.left_sibling,node.right_sibling);
+            for(int i = 0; i< node.cnt;i++) printf("%s ",node.key[i]);
+            printf("\n\n");
+            for(int i = 0; i< node.cnt;i++){
+                bpt_node child;
+                node_memory_river.read(child,node.child[i]);
+                show(child,node.child[i]);
+            }
+            if(node_address == root_pos) printf("%d\n",sum);
         }
     }
 };
