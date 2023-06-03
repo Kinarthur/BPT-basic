@@ -756,7 +756,6 @@ public:
             if(node_address == root_pos) printf("%d\n",sum);
         }
     }
-    }
 };
 
 #endif //BPTREE_HPP_BPTREE2_HPP
