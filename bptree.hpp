@@ -112,10 +112,10 @@ class BPTree {
 private:
     struct value_array {
 
-        int size,next;
+        int size,pre,next;
         T val[1010];
-        value_array() :size(0),next(-1) {};
-        value_array(const T& _val) :size(1),next(-1) {
+        value_array() :size(0),pre(-1),next(-1) {};
+        value_array(const T& _val) :size(1),pre(-1),next(-1) {
             val[0] = _val;
         }
         int lower_bound(const T& _val) {
@@ -134,7 +134,8 @@ private:
                 return 1;
             }
             int pos = lower_bound(_val);
-            if(pos == size && next != -1)
+            if(pos == size && size == 1010 && next != -1){
+            }
             if (val[pos] == _val) return 0;
             else {
                 for (int i = size; i > pos; i--) {
@@ -157,6 +158,119 @@ private:
             return 1;
         }
     };
+
+    int insert(value_array &val_arr,int address, const T &_val){
+        if (val_arr.size == 0) {
+            val_arr.size = 1;
+            val_arr.val[0] = _val;
+            value_memory_river.update(val_arr,address);
+            return 1;
+        }
+        int pos = val_arr.lower_bound(_val);
+
+        if(pos == val_arr.size && val_arr.next != -1){
+            value_array tmp;
+            value_memory_river.read(tmp, val_arr.next);
+            return insert(tmp, val_arr.next,_val);
+        }
+
+        if(pos == val_arr.size ){
+            if(val_arr.size == 1010){
+                value_array tmp;
+                tmp.pre = address;
+                val_arr.next = value_memory_river.write(tmp);
+                value_memory_river.update(val_arr,address);
+                return insert(tmp,val_arr.next,_val);
+            }else{
+                val_arr.val[val_arr.size ++ ] = _val;
+                value_memory_river.update(val_arr,address);
+                return 1;
+            }
+        }
+
+        if(val_arr.val[pos] == _val ) return 0;
+        else {
+            if(val_arr.size == 1010){
+                if(val_arr.next == -1){
+                    value_array tmp;
+                    tmp.pre = address;
+                    val_arr.next = value_memory_river.write(tmp);
+                    insert(tmp,val_arr.next,val_arr.val[val_arr.size -1]);
+                }else{
+                    value_array tmp;
+                    value_memory_river.read(tmp,val_arr.next);
+                    insert(tmp,val_arr.next,val_arr.val[val_arr.size - 1]);
+                }
+
+                for (int i = val_arr.size-1; i > pos; i--) {
+                    val_arr.val[i] = val_arr.val[i - 1];
+                }
+                val_arr.val[pos] = _val;
+                value_memory_river.update(val_arr,address);
+                return 1;
+            }else{
+                for (int i = val_arr.size; i > pos; i--) {
+                    val_arr.val[i] = val_arr.val[i - 1];
+                }
+                val_arr.val[pos] = _val;
+                val_arr.size++;
+                value_memory_river.update(val_arr,address);
+                return 1;
+            }
+        }
+    }
+
+    int erase(value_array &val_arr, int address, T _val){
+        int pos = val_arr.lower_bound(_val);
+        if (pos == val_arr.size){
+            if(val_arr.next != 0){
+                value_array tmp;
+                value_memory_river.read(tmp,val_arr.next);
+                return erase(tmp,val_arr.next,_val);
+            }
+            else return 0;
+        }
+        if(val_arr.val[pos] != _val) return 0;
+        for (int i = pos; i < val_arr.size - 1; i++) {
+            val_arr.val[i] = val_arr.val[i + 1];
+        }
+        val_arr.size--;
+        if(val_arr.size != 0) {
+            value_memory_river.update(val_arr,address);
+            return 1;
+        }
+        else{
+            if(val_arr.pre != -1){
+                value_array pre;
+                value_memory_river.read(pre,val_arr.pre);
+                pre.next = val_arr.next;
+                value_memory_river.update(pre,val_arr.pre);
+                if(val_arr.next != -1){
+                    value_array next;
+                    value_memory_river.read(next,val_arr.next);
+                    next.pre = val_arr.pre;
+                    value_memory_river.update(next,val_arr.next);
+                }
+                value_memory_river.Delete(address);
+                return 1;
+            }else{
+                if(val_arr.next != -1){
+                    value_array next;
+                    value_memory_river.read(next,val_arr.next);
+                    int tmp_next_add = val_arr.next;
+                    //val_arr = next;
+                    next.pre = -1;
+                    value_memory_river.update(next,address);
+                    value_memory_river.Delete(tmp_next_add);
+                    return 1;
+                }else{
+                    value_memory_river.Delete(address);
+                    return 2;
+                }
+            }
+        }
+    }
+
 
     struct bpt_node {
         bool isleaf;
@@ -235,7 +349,6 @@ public:
                 node_memory_river.update(node, node_address);
                 value_memory_river.update(tmp, node.child[0]); //这句不加，VS里竟然会出错，看着插了，实际没插
                 return std::pair<int, Key>(0, val.first);
-
             }
             else {
                 int pos = node.get_pos(val.first);
@@ -283,9 +396,8 @@ public:
                     int index = node.child[pos];
                     value_array tmp;
                     value_memory_river.read(tmp, index);
-                    int flag = tmp.insert(val.second);
+                    int flag = insert(tmp,index,val.second);
                     if (flag == 1) {
-                        value_memory_river.update(tmp, index);
                         m_size++;
                     }
                     return std::pair<int, Key>(0, val.first);
@@ -378,10 +490,14 @@ public:
             if (node.key[index] != key) return ret;
             else {
                 value_array val;
-                value_memory_river.read(val, node.child[index]);
-                for (int i = 0; i < val.size; i++) {
-                    ret.push_back(val.val[i]);
-                }
+                int address = node.child[index];
+                do {
+                    value_memory_river.read(val, address);
+                    for (int i = 0; i < val.size; i++) {
+                        ret.push_back(val.val[i]);
+                    }
+                    address = val.next;
+                }while(address != -1);
                 return ret;
             }
         }
@@ -407,14 +523,12 @@ public:
             if (node.key[index] != val.first) return result();
             value_array value;
             value_memory_river.read(value, node.child[index]);
-            int flag = value.erase(val.second);
-            if (flag == 1) m_size--;
-            if (value.size > 0) {
-                value_memory_river.update(value, node.child[index]);
+            int flag = erase(value,node.child[index],val.second);
+            if (flag == 1){
+                m_size--;
                 return result();
-            }
+            }else if(flag == 0) return result();
             else {
-                value_memory_river.Delete(node.child[index]);
                 for (int i = index; i < node.cnt - 1; i++) {
                     node.key[i] = node.key[i + 1];
                     node.child[i] = node.child[i + 1];
