@@ -9,6 +9,7 @@ using std::fstream;
 using std::ifstream;
 using std::ofstream;
 
+//for MemoryRiver
 //the first info is for the head of empty node chain
 //the second info is for the number of empty node in the chain
 template<class T, int info_len = 2>
@@ -127,36 +128,6 @@ private:
             }
             return r;
         }
-        int insert(const T& _val) {
-            if (size == 0) {
-                size = 1;
-                val[0] = _val;
-                return 1;
-            }
-            int pos = lower_bound(_val);
-            if(pos == size && size == 1010 && next != -1){
-            }
-            if (val[pos] == _val) return 0;
-            else {
-                for (int i = size; i > pos; i--) {
-                    val[i] = val[i - 1];
-                }
-                val[pos] = _val;
-                size++;
-                return 1;
-            }
-        }
-
-        int erase(const T& _val) {
-            if (size == 0) return 0;
-            int pos = lower_bound(_val);
-            if (pos == size || val[pos] != _val) return 0;
-            for (int i = pos; i < size - 1; i++) {
-                val[i] = val[i + 1];
-            }
-            size--;
-            return 1;
-        }
     };
 
     int insert(value_array &val_arr,int address, const T &_val){
@@ -258,8 +229,8 @@ private:
                     value_array next;
                     value_memory_river.read(next,val_arr.next);
                     int tmp_next_add = val_arr.next;
-                    //val_arr = next;
                     next.pre = -1;
+                    val_arr = next;
                     value_memory_river.update(next,address);
                     value_memory_river.Delete(tmp_next_add);
                     return 1;
@@ -715,6 +686,7 @@ public:
         node_memory_river.initialise();
         node_memory_river.write_info(m_size, 3);
         root_pos = node_memory_river.write(*root);
+        node_memory_river.write_info(root_pos,4);
         value_memory_river.initialise();
     }
 
@@ -724,6 +696,7 @@ public:
     }
 
     void modify(const std::pair<Key, T>& val, T new_val, bpt_node& node) {
+        if(val.second == new_val) return;
         if (node.isleaf == 0) {
             int index = node.get_pos(val.first);
             bpt_node child;
@@ -735,13 +708,9 @@ public:
             int index = node.get_pos(val.first);
             if (node.key[index] != val.first) return;
             value_array value;
-            value_memory_river.read(value, node.child[index]);
-            int index2 = value.lower_bound(val.second);
-            if (value.val[index2] != val.second) return;
-            for (int i = index2; i < value.size - 1; i++) value.val[i] = value.val[i + 1];
-            value.size--;
-            value.insert(new_val);
-            value_memory_river.update(value, node.child[index]);
+            value_memory_river.read(value,node.child[index]);
+            insert(value,node.child[index],new_val);
+            erase(value,node.child[index],val.second);
             return;
         }
     }
@@ -786,6 +755,7 @@ public:
             }
             if(node_address == root_pos) printf("%d\n",sum);
         }
+    }
     }
 };
 
